@@ -1,0 +1,625 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WiFi Card Maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,700;1,400;1,700&family=Open+Sans:ital,wght@0,400;0,700;1,400;1,700&family=Montserrat:ital,wght@0,400;0,700;1,400;1,700&family=Poppins:ital,wght@0,400;0,700;1,400;1,700&family=Lato:ital,wght@0,400;0,700;1,400;1,700&family=Nunito:ital,wght@0,400;0,700;1,400;1,700&family=Raleway:ital,wght@0,400;0,700;1,400;1,700&family=Merriweather:ital,wght@0,400;0,700;1,400;1,700&family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.6.0-rc.1/lib/qr-code-styling.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+/* Layout: scrolling control column on the left, sticky paper preview on the right */
+:root{
+  --bg:#eef1f0; --panel:#ffffff; --fg:#1b2422; --muted:#5d6b67; --line:#d5dcda;
+  --accent:#1f6b57; --accent-fg:#ffffff; --warn:#a4501b; --warn-bg:#fbeee4;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#141a19; --panel:#1d2523; --fg:#e4ebe9; --muted:#9aa8a4; --line:#33403d;
+    --accent:#4fb596; --accent-fg:#0d1513; --warn:#f0a36d; --warn-bg:#3a2619; color-scheme:dark; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{padding:18px max(16px,env(safe-area-inset-left)) 6px}
+header h1{margin:0;font-size:20px;letter-spacing:.01em}
+header p{margin:2px 0 0;color:var(--muted)}
+main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,440px);gap:20px;padding:12px 16px 40px;max-width:1200px}
+@media (max-width:820px){ main{grid-template-columns:1fr} .preview{position:static!important;order:-1} }
+.controls{display:flex;flex-direction:column;gap:10px;min-width:0}
+details{background:var(--panel);border:1px solid var(--line);border-radius:8px}
+summary{cursor:pointer;padding:10px 14px;font-weight:600;list-style:none;display:flex;justify-content:space-between}
+summary::after{content:"+";color:var(--muted)}
+details[open] summary::after{content:"–"}
+.body{padding:2px 14px 14px;display:flex;flex-direction:column;gap:10px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.row > label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);flex:1 1 120px;min-width:0}
+.row > label.sm{flex:0 1 90px}
+.row > label.chk{flex-direction:row;align-items:center;gap:6px;flex:0 0 auto;color:var(--fg);font-size:13px}
+h3{margin:6px 0 -2px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+input[type=text],input[type=number],select,textarea{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%;min-width:0}
+textarea{resize:vertical;min-height:52px}
+input[type=color]{width:44px;height:32px;padding:2px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,.tog input:focus-visible+span{outline:2px solid var(--accent);outline-offset:1px}
+.tog{position:relative;display:inline-flex}
+.tog input{position:absolute;opacity:0;inset:0;cursor:pointer;margin:0}
+.tog span{display:inline-grid;place-items:center;width:34px;height:32px;border:1px solid var(--line);border-radius:6px;background:var(--bg);font-family:Georgia,serif;font-size:15px}
+.tog input:checked+span{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.tools{align-items:center}
+.tools select{width:auto}
+button{font:inherit;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--fg);padding:7px 12px}
+button.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);font-weight:600}
+.presets{display:flex;flex-wrap:wrap;gap:6px}
+.hint{font-size:12px;color:var(--muted);margin:0}
+.warn{font-size:12px;color:var(--warn);background:var(--warn-bg);padding:6px 10px;border-radius:6px;margin:0}
+.preview{position:sticky;top:12px;align-self:start;display:flex;flex-direction:column;gap:12px;align-items:center}
+.paper{background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.12),0 8px 28px rgba(0,0,0,.14);line-height:0}
+#preview{width:min(340px,80vw);aspect-ratio:95/150;display:block}
+.dim{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+</style>
+</head>
+<body>
+<header>
+  <h1>WiFi Card Maker</h1>
+  <p>Design a printable WiFi card for your holder (95 × 150 mm by default) with a scannable QR code, then download it as PDF.</p>
+</header>
+<main>
+  <div class="controls">
+    <details open>
+      <summary>Card size</summary>
+      <div class="body">
+        <div class="row tools">
+          <label>Size<select id="p-preset">
+            <option value="95x150">95 × 150 mm (default)</option>
+            <option value="100x150">100 × 150 mm (4 × 6″ photo)</option>
+            <option value="105x148">105 × 148 mm (A6)</option>
+            <option value="90x130">90 × 130 mm</option>
+            <option value="127x178">127 × 178 mm (5 × 7″)</option>
+            <option value="99x210">99 × 210 mm (DL)</option>
+            <option value="148x210">148 × 210 mm (A5)</option>
+            <option value="custom">Custom size</option>
+          </select></label>
+          <label class="sm">Width (mm)<input type="number" id="p-w" min="40" max="210" step="1" data-k="page.w"></label>
+          <label class="sm">Height (mm)<input type="number" id="p-h" min="40" max="297" step="1" data-k="page.h"></label>
+          <button type="button" id="p-swap" title="Swap width and height">Rotate</button>
+        </div>
+        <p class="hint">Measure the inside of your holder. If the content no longer fits, lower the QR size or spacing.</p>
+      </div>
+    </details>
+
+    <details open>
+      <summary>Network &amp; text</summary>
+      <div class="body">
+        <div class="row"><label>Custom text (Enter for new line)<textarea id="c-custom" data-k="content.custom" rows="2"></textarea></label></div>
+        <div class="row"><label class="chk"><input type="checkbox" id="c-custom-show" data-k="custom.show"> Show custom text</label></div>
+        <div class="row">
+          <label>WiFi name (SSID)<input type="text" id="c-ssid" data-k="content.ssid"></label>
+          <label>Password<input type="text" id="c-pw" data-k="content.password"></label>
+        </div>
+        <div class="row">
+          <label>Password label<input type="text" id="c-pwlabel" data-k="content.pwLabel"></label>
+          <label>Security<select id="c-sec" data-k="content.security"><option value="WPA">WPA / WPA2 / WPA3</option><option value="WEP">WEP</option><option value="nopass">None (open)</option></select></label>
+        </div>
+        <div class="row">
+          <label class="chk"><input type="checkbox" id="c-hidden" data-k="content.hidden"> Hidden network</label>
+          <label class="chk"><input type="checkbox" id="c-showpw" data-k="content.showPw"> Print password on card</label>
+        </div>
+      </div>
+    </details>
+
+    <details open>
+      <summary>Text styles</summary>
+      <div class="body" id="textStyles"></div>
+    </details>
+
+    <details open>
+      <summary>QR code</summary>
+      <div class="body">
+        <div class="presets" id="presets"></div>
+        <div class="row">
+          <label class="sm">Size (mm)<input type="number" id="q-size" min="20" max="80" step="1" data-k="qr.size"></label>
+          <label class="sm">Quiet zone (mm)<input type="number" id="q-margin" min="0" max="10" step="0.5" data-k="qr.margin"></label>
+          <label>Error correction<select id="q-ecl" data-k="qr.ecl"><option value="L">L – 7%</option><option value="M">M – 15%</option><option value="Q">Q – 25%</option><option value="H">H – 30% (use with logo)</option></select></label>
+        </div>
+        <h3>Dots</h3>
+        <div class="row tools">
+          <label>Style<select id="q-dot" data-k="qr.dotType"><option value="square">Square</option><option value="dots">Dots</option><option value="rounded">Rounded</option><option value="extra-rounded">Extra rounded</option><option value="classy">Classy</option><option value="classy-rounded">Classy rounded</option></select></label>
+          <input type="color" id="q-dotc" data-k="qr.dotColor" title="Dot color">
+          <label class="chk"><input type="checkbox" id="q-grad" data-k="qr.gradient"> Gradient</label>
+        </div>
+        <div class="row tools" id="gradRow">
+          <input type="color" id="q-grad2" data-k="qr.gradColor2" title="Gradient end color">
+          <label>Type<select id="q-gradt" data-k="qr.gradType"><option value="linear">Linear</option><option value="radial">Radial</option></select></label>
+          <label class="sm">Angle (°)<input type="number" id="q-gradr" min="0" max="360" step="15" data-k="qr.gradRotation"></label>
+        </div>
+        <h3>Corner squares</h3>
+        <div class="row tools">
+          <label>Style<select id="q-cs" data-k="qr.csType"><option value="square">Square</option><option value="dot">Circle</option><option value="extra-rounded">Rounded</option></select></label>
+          <input type="color" id="q-csc" data-k="qr.csColor" title="Corner square color">
+        </div>
+        <h3>Corner dots</h3>
+        <div class="row tools">
+          <label>Style<select id="q-cd" data-k="qr.cdType"><option value="square">Square</option><option value="dot">Circle</option></select></label>
+          <input type="color" id="q-cdc" data-k="qr.cdColor" title="Corner dot color">
+        </div>
+        <h3>Background</h3>
+        <div class="row tools">
+          <input type="color" id="q-bg" data-k="qr.bg" title="QR background">
+          <label class="chk"><input type="checkbox" id="q-bgt" data-k="qr.bgTransparent"> Transparent</label>
+        </div>
+        <h3>Center logo</h3>
+        <div class="row tools">
+          <label>Image<input type="file" id="q-logo" accept="image/*"></label>
+          <button type="button" id="q-logo-rm">Remove</button>
+        </div>
+        <div class="row tools">
+          <label class="sm">Logo size (0.1–0.5)<input type="number" id="q-logos" min="0.1" max="0.5" step="0.05" data-k="qr.logoSize"></label>
+          <label class="chk"><input type="checkbox" id="q-hide" data-k="qr.hideDots"> Clear dots behind logo</label>
+        </div>
+        <p class="warn" id="logoWarn" hidden>With a logo, set error correction to H so the code stays scannable.</p>
+      </div>
+    </details>
+
+    <details open>
+      <summary>WiFi symbol &amp; separator</summary>
+      <div class="body">
+        <div class="row tools">
+          <label class="chk"><input type="checkbox" id="i-show" data-k="icon.show"> Show symbol</label>
+          <label>Style<select id="i-style" data-k="icon.style"><option value="arcs">Arcs</option><option value="circle">Arcs in circle</option></select></label>
+          <label class="sm">Size (mm)<input type="number" id="i-size" min="3" max="30" step="0.5" data-k="icon.size"></label>
+          <input type="color" id="i-color" data-k="icon.color" title="Symbol color">
+        </div>
+        <div class="row tools">
+          <label class="chk"><input type="checkbox" id="s-show" data-k="sep.show"> Show separator line</label>
+          <label>Line style<select id="s-style" data-k="sep.style"><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option></select></label>
+          <input type="color" id="s-color" data-k="sep.color" title="Line color">
+        </div>
+        <div class="row">
+          <label class="sm">Thickness (mm)<input type="number" id="s-th" min="0.1" max="3" step="0.1" data-k="sep.thickness"></label>
+          <label class="sm">Length (%)<input type="number" id="s-len" min="10" max="100" step="5" data-k="sep.length"></label>
+          <label class="sm">Gap to symbol (mm)<input type="number" id="s-gap" min="0" max="20" step="0.5" data-k="sep.gap"></label>
+        </div>
+      </div>
+    </details>
+
+    <details open>
+      <summary>Page, spacing &amp; border</summary>
+      <div class="body">
+        <div class="row tools">
+          <label class="sm">Page color<input type="color" id="l-bg" data-k="layout.bg"></label>
+          <label class="sm">Inner padding (mm)<input type="number" id="l-pad" min="0" max="30" step="0.5" data-k="layout.padding"></label>
+          <label class="sm">Spacing (mm)<input type="number" id="l-gap" min="0" max="30" step="0.5" data-k="layout.gap"></label>
+          <label class="sm">Label → password (mm)<input type="number" id="l-lgap" min="0" max="15" step="0.5" data-k="layout.labelGap"></label>
+          <label>Vertical layout<select id="l-valign" data-k="layout.valign"><option value="center">Centered</option><option value="top">From top</option><option value="distribute">Spread evenly</option></select></label>
+        </div>
+        <h3>Border</h3>
+        <div class="row tools">
+          <label class="chk"><input type="checkbox" id="b-show" data-k="border.show"> Show border</label>
+          <label>Style<select id="b-style" data-k="border.style"><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option><option value="double">Double</option></select></label>
+          <input type="color" id="b-color" data-k="border.color" title="Border color">
+        </div>
+        <div class="row">
+          <label class="sm">Width (mm)<input type="number" id="b-w" min="0.1" max="5" step="0.1" data-k="border.width"></label>
+          <label class="sm">Corner radius (mm)<input type="number" id="b-r" min="0" max="20" step="0.5" data-k="border.radius"></label>
+          <label class="sm">Distance from edge (mm)<input type="number" id="b-in" min="0" max="20" step="0.5" data-k="border.inset"></label>
+        </div>
+      </div>
+    </details>
+
+    <details open>
+      <summary>Cutting guides</summary>
+      <div class="body">
+        <div class="row tools">
+          <label>Guides<select id="k-mode" data-k="cut.mode"><option value="none">None (PDF is exactly the card size)</option><option value="line">Thin cut line around card</option><option value="marks">Crop marks on corners</option><option value="both">Cut line + crop marks</option></select></label>
+          <label>Sheet<select id="k-sheet" data-k="cut.sheet"><option value="fit">Card + margin</option><option value="A4">A4 (card centered)</option></select></label>
+          <input type="color" id="k-color" data-k="cut.color" title="Guide color">
+        </div>
+        <div class="row">
+          <label class="sm">Margin around card (mm)<input type="number" id="k-margin" min="3" max="40" step="1" data-k="cut.margin"></label>
+          <label class="sm">Line thickness (mm)<input type="number" id="k-th" min="0.05" max="1" step="0.05" data-k="cut.thickness"></label>
+          <label>Cut line style<select id="k-lstyle" data-k="cut.lineStyle"><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option></select></label>
+        </div>
+        <div class="row">
+          <label class="sm">Mark length (mm)<input type="number" id="k-len" min="1" max="20" step="0.5" data-k="cut.len"></label>
+          <label class="sm">Mark gap from edge (mm)<input type="number" id="k-gap" min="0" max="10" step="0.5" data-k="cut.gap"></label>
+          <label class="sm">Bleed (mm)<input type="number" id="k-bleed" min="0" max="5" step="0.5" data-k="cut.bleed"></label>
+        </div>
+        <p class="hint">Bleed extends the page color past the cut edge, so a colored card has no white sliver after cutting. Crop marks always start outside the bleed.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Settings</summary>
+      <div class="body">
+        <div class="row tools">
+          <label class="sm">PDF resolution<select id="e-dpi" data-k="export.dpi"><option value="300">300 dpi</option><option value="600">600 dpi</option></select></label>
+        </div>
+        <div class="actions" style="justify-content:flex-start">
+          <button type="button" id="saveJson">Save design (.json)</button>
+          <button type="button" id="loadJsonBtn">Load design</button>
+          <input type="file" id="loadJson" accept="application/json,.json" hidden>
+          <button type="button" id="reset">Reset to defaults</button>
+        </div>
+        <p class="hint">Your last design is remembered in this browser automatically.</p>
+      </div>
+    </details>
+  </div>
+
+  <aside class="preview">
+    <div class="paper"><canvas id="preview"></canvas></div>
+    <div class="dim" id="dim">95 × 150 mm · preview</div>
+    <p class="warn" id="fitWarn" hidden>Content is taller than the card. Reduce sizes or spacing.</p>
+    <div class="actions">
+      <button type="button" class="primary" id="dlPdf">Download PDF</button>
+      <button type="button" id="dlPng">Download PNG</button>
+    </div>
+    <p class="hint" id="status"></p>
+  </aside>
+</main>
+
+<script>
+const FONTS = ["Montserrat","Roboto","Open Sans","Poppins","Lato","Nunito","Raleway","Merriweather","Playfair Display","Arial","Georgia","Times New Roman"];
+const WEB_FONTS = new Set(FONTS.slice(0, 9));
+
+const txt = (o) => Object.assign({font:"Montserrat", size:12, bold:false, italic:false, underline:false, color:"#1a1a1a", align:"center"}, o);
+const DEFAULTS = {
+  page:{w:95, h:150},
+  content:{custom:"Welcome! Scan the code\nto join our network", ssid:"Guest WiFi", password:"welcome2026", pwLabel:"Password:", security:"WPA", hidden:false, showPw:true},
+  custom: txt({size:11, color:"#444444", show:true}),
+  ssidText: txt({size:20, bold:true}),
+  pwLabel: txt({size:12, bold:true}),
+  pwText: txt({size:13}),
+  qr:{size:58, margin:1.5, ecl:"Q", dotType:"rounded", dotColor:"#1a1a1a", gradient:false, gradColor2:"#1f6b57", gradType:"linear", gradRotation:45,
+      csType:"extra-rounded", csColor:"#1a1a1a", cdType:"dot", cdColor:"#1a1a1a", bg:"#ffffff", bgTransparent:false, logo:null, logoSize:0.3, hideDots:true},
+  icon:{show:true, style:"arcs", size:9, color:"#1a1a1a"},
+  sep:{show:true, thickness:0.4, color:"#1a1a1a", style:"solid", length:80, gap:3},
+  layout:{bg:"#ffffff", gap:5, labelGap:1.5, padding:6, valign:"center"},
+  border:{show:true, width:0.8, color:"#1a1a1a", style:"solid", radius:4, inset:4},
+  cut:{mode:"marks", sheet:"fit", color:"#000000", margin:10, thickness:0.15, lineStyle:"solid", len:5, gap:3, bleed:0},
+  export:{dpi:"600"}
+};
+function sheetSize(){
+  const c = S.cut;
+  const {w, h} = S.page;
+  if (c.mode === "none") return {w, h};
+  if (c.sheet === "A4" && w <= 210 && h <= 297) return {w:210, h:297};
+  return {w: w + 2*c.margin, h: h + 2*c.margin};
+}
+const QR_PRESETS = {
+  "Classic": {dotType:"square", csType:"square", cdType:"square", gradient:false, dotColor:"#000000", csColor:"#000000", cdColor:"#000000"},
+  "Soft":    {dotType:"rounded", csType:"extra-rounded", cdType:"dot", gradient:false, dotColor:"#1a1a1a", csColor:"#1a1a1a", cdColor:"#1a1a1a"},
+  "Dots":    {dotType:"dots", csType:"dot", cdType:"dot", gradient:false, dotColor:"#1a1a1a", csColor:"#1a1a1a", cdColor:"#1a1a1a"},
+  "Elegant": {dotType:"classy-rounded", csType:"extra-rounded", cdType:"square", gradient:true, gradType:"linear", gradRotation:45, dotColor:"#0f2f4d", gradColor2:"#1f6b57", csColor:"#0f2f4d", cdColor:"#1f6b57"}
+};
+
+const clone = (o) => JSON.parse(JSON.stringify(o));
+function merge(base, extra){ for (const k in extra){ if (extra[k] && typeof extra[k]==="object" && !Array.isArray(extra[k]) && base[k] && typeof base[k]==="object") merge(base[k], extra[k]); else if (k in base) base[k]=extra[k]; } return base; }
+let S = clone(DEFAULTS);
+try { const saved = localStorage.getItem("wifiCard.v1"); if (saved) merge(S, JSON.parse(saved)); } catch(e){}
+function persist(){ try { localStorage.setItem("wifiCard.v1", JSON.stringify(S)); } catch(e){} }
+
+/* ---------- Build per-text-element controls ---------- */
+const TEXT_ELEMENTS = [["custom","Custom text"],["ssidText","WiFi name"],["pwLabel","“Password:” label"],["pwText","Password"]];
+document.getElementById("textStyles").innerHTML = TEXT_ELEMENTS.map(([k, name]) => `
+  <h3>${name}</h3>
+  <div class="row tools">
+    <label>Font<select id="${k}-font" data-k="${k}.font">${FONTS.map(f=>`<option>${f}</option>`).join("")}</select></label>
+    <label class="sm">Size (pt)<input type="number" id="${k}-size" min="4" max="80" step="0.5" data-k="${k}.size"></label>
+  </div>
+  <div class="row tools">
+    <label class="tog" title="Bold"><input type="checkbox" id="${k}-b" data-k="${k}.bold" aria-label="Bold"><span><b>B</b></span></label>
+    <label class="tog" title="Italic"><input type="checkbox" id="${k}-i" data-k="${k}.italic" aria-label="Italic"><span><i>I</i></span></label>
+    <label class="tog" title="Underline"><input type="checkbox" id="${k}-u" data-k="${k}.underline" aria-label="Underline"><span><u>U</u></span></label>
+    <select id="${k}-align" data-k="${k}.align" aria-label="Alignment"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select>
+    <input type="color" id="${k}-color" data-k="${k}.color" title="Text color">
+  </div>`).join("");
+
+document.getElementById("presets").innerHTML = Object.keys(QR_PRESETS).map(n=>`<button type="button" data-preset="${n}">${n}</button>`).join("");
+
+/* ---------- Binding ---------- */
+const getP = (p) => p.split(".").reduce((o,k)=>o[k], S);
+const setP = (p,v) => { const ks=p.split("."), last=ks.pop(); ks.reduce((o,k)=>o[k], S)[last]=v; };
+const bound = [...document.querySelectorAll("[data-k]")];
+function syncInputs(){
+  bound.forEach(el => { const v = getP(el.dataset.k); if (el.type==="checkbox") el.checked = !!v; else el.value = v; });
+  document.getElementById("gradRow").hidden = !S.qr.gradient;
+  document.getElementById("logoWarn").hidden = !(S.qr.logo && S.qr.ecl !== "H");
+  syncPreset();
+}
+const presetSel = document.getElementById("p-preset");
+function syncPreset(){
+  const v = `${S.page.w}x${S.page.h}`;
+  presetSel.value = [...presetSel.options].some(o => o.value === v) ? v : "custom";
+}
+presetSel.addEventListener("change", () => {
+  if (presetSel.value === "custom") return;
+  const [w, h] = presetSel.value.split("x").map(Number);
+  S.page.w = w; S.page.h = h; syncInputs(); update();
+});
+document.getElementById("p-swap").addEventListener("click", () => {
+  [S.page.w, S.page.h] = [S.page.h, S.page.w]; syncInputs(); update();
+});
+bound.forEach(el => el.addEventListener("input", () => {
+  let v = el.type==="checkbox" ? el.checked : el.type==="number" ? parseFloat(el.value) : el.value;
+  if (el.type==="number" && !Number.isFinite(v)) return;
+  setP(el.dataset.k, v);
+  if (el.dataset.k === "qr.gradient") document.getElementById("gradRow").hidden = !v;
+  document.getElementById("logoWarn").hidden = !(S.qr.logo && S.qr.ecl !== "H");
+  if (el.dataset.k.startsWith("page.")) syncPreset();
+  update();
+}));
+document.getElementById("presets").addEventListener("click", e => {
+  const n = e.target.dataset.preset; if (!n) return;
+  Object.assign(S.qr, QR_PRESETS[n]); syncInputs(); update();
+});
+document.getElementById("q-logo").addEventListener("change", e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => { S.qr.logo = r.result; if (S.qr.ecl !== "H") S.qr.ecl = "H"; syncInputs(); update(); };
+  r.readAsDataURL(f);
+});
+document.getElementById("q-logo-rm").addEventListener("click", () => { S.qr.logo = null; document.getElementById("q-logo").value=""; syncInputs(); update(); });
+
+/* ---------- WiFi QR payload ---------- */
+const esc = (s) => String(s).replace(/([\\;,:"])/g, "\\$1");
+function wifiPayload(){
+  const c = S.content;
+  let s = `WIFI:T:${c.security};S:${esc(c.ssid)};`;
+  if (c.security !== "nopass") s += `P:${esc(c.password)};`;
+  if (c.hidden) s += "H:true;";
+  return s + ";";
+}
+
+/* ---------- QR rendering (cached) ---------- */
+let qrCache = {key:null, bmp:null};
+async function getQrBitmap(px){
+  const q = S.qr;
+  const key = JSON.stringify([q, wifiPayload(), px]);
+  if (qrCache.key === key) return qrCache.bmp;
+  const dots = {type:q.dotType, color:q.dotColor};
+  if (q.gradient) dots.gradient = {type:q.gradType, rotation:q.gradRotation*Math.PI/180, colorStops:[{offset:0,color:q.dotColor},{offset:1,color:q.gradColor2}]};
+  const qr = new QRCodeStyling({
+    width:px, height:px, type:"canvas", data:wifiPayload(),
+    margin: Math.round(q.margin/q.size*px),
+    qrOptions:{errorCorrectionLevel:q.ecl},
+    image: q.logo || undefined,
+    imageOptions:{hideBackgroundDots:q.hideDots, imageSize:q.logoSize, margin:Math.round(px*0.01)},
+    dotsOptions:dots,
+    cornersSquareOptions:{type:q.csType, color:q.csColor},
+    cornersDotOptions:{type:q.cdType, color:q.cdColor},
+    backgroundOptions:{color: q.bgTransparent ? "rgba(0,0,0,0)" : q.bg}
+  });
+  const blob = await qr.getRawData("png");
+  const bmp = await createImageBitmap(blob);
+  qrCache = {key, bmp};
+  return bmp;
+}
+
+/* ---------- Drawing helpers ---------- */
+const PT_MM = 25.4/72;
+function fontStr(st, px){ const fam = WEB_FONTS.has(st.font) ? `"${st.font}"` : `"${st.font}"`; return `${st.italic?"italic ":""}${st.bold?700:400} ${px}px ${fam}, sans-serif`; }
+function wrap(ctx, text, maxW){
+  const out = [];
+  for (const para of String(text).split("\n")){
+    const words = para.split(" "); let line = "";
+    for (let w of words){
+      const test = line ? line+" "+w : w;
+      if (ctx.measureText(test).width <= maxW){ line = test; continue; }
+      if (line) out.push(line);
+      while (ctx.measureText(w).width > maxW && w.length > 1){ // break very long words (e.g. passwords)
+        let i = w.length; while (i > 1 && ctx.measureText(w.slice(0,i)).width > maxW) i--;
+        out.push(w.slice(0,i)); w = w.slice(i);
+      }
+      line = w;
+    }
+    out.push(line);
+  }
+  return out;
+}
+function roundRect(ctx, x, y, w, h, r){
+  r = Math.max(0, Math.min(r, w/2, h/2));
+  ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+function applyDash(ctx, style, lw){
+  ctx.lineCap = style==="dotted" ? "round" : "butt";
+  ctx.setLineDash(style==="dashed" ? [lw*4, lw*2.5] : style==="dotted" ? [0.001, lw*2.2] : []);
+}
+function drawArcs(ctx, cx, top, s, color){
+  const lw = s*0.11, R3 = (s/2 - lw/2)/Math.SQRT1_2, dotR = s*0.085;
+  const oy = top + R3 + lw/2;
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = lw; ctx.lineCap = "round"; ctx.setLineDash([]);
+  for (const f of [0.29, 0.64, 1]){ ctx.beginPath(); ctx.arc(cx, oy, R3*f, -Math.PI*0.75, -Math.PI*0.25); ctx.stroke(); }
+  ctx.beginPath(); ctx.arc(cx, oy, dotR, 0, Math.PI*2); ctx.fill();
+  return R3 + lw/2 + dotR; // drawn height
+}
+const arcsHeight = (s) => { const lw=s*0.11; return (s/2-lw/2)/Math.SQRT1_2 + lw/2 + s*0.085; };
+
+async function ensureFonts(){
+  const jobs = [];
+  const map = {custom:S.content.custom, ssidText:S.content.ssid, pwLabel:S.content.pwLabel, pwText:S.content.password};
+  for (const k in map) if (WEB_FONTS.has(S[k].font)) jobs.push(document.fonts.load(fontStr(S[k], 20), map[k] || "A").catch(()=>{}));
+  await Promise.all(jobs);
+}
+
+/* ---------- Card renderer (shared by preview and export) ---------- */
+async function renderCard(canvas, ppm){
+  await ensureFonts();
+  const mm = (v) => v*ppm;
+  const qrPx = Math.round(mm(S.qr.size));
+  const qrBmp = await getQrBitmap(qrPx);
+
+  const sh = sheetSize();
+  const PAGE_W = S.page.w, PAGE_H = S.page.h;
+  const off = {x: mm((sh.w-PAGE_W)/2), y: mm((sh.h-PAGE_H)/2)};
+  canvas.width = Math.round(sh.w*ppm); canvas.height = Math.round(sh.h*ppm);
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#ffffff"; ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.save(); ctx.translate(off.x, off.y);
+  const CW = PAGE_W*ppm, CH = PAGE_H*ppm;
+  const bleed = S.cut.mode === "none" ? 0 : mm(S.cut.bleed);
+  ctx.fillStyle = S.layout.bg; ctx.fillRect(-bleed, -bleed, CW+2*bleed, CH+2*bleed);
+
+  const B = S.border, bw = B.show ? mm(B.width) : 0, inset = mm(B.inset);
+  if (B.show){
+    ctx.strokeStyle = B.color;
+    if (B.style === "double"){
+      const t = bw/3; ctx.lineWidth = t; ctx.setLineDash([]);
+      roundRect(ctx, inset+t/2, inset+t/2, CW-2*inset-t, CH-2*inset-t, mm(B.radius)); ctx.stroke();
+      roundRect(ctx, inset+bw-t/2, inset+bw-t/2, CW-2*inset-2*bw+t, CH-2*inset-2*bw+t, Math.max(0,mm(B.radius)-2*t)); ctx.stroke();
+    } else {
+      ctx.lineWidth = bw; applyDash(ctx, B.style, bw);
+      roundRect(ctx, inset+bw/2, inset+bw/2, CW-2*inset-bw, CH-2*inset-bw, mm(B.radius)); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+  }
+
+  const pad = mm(S.layout.padding);
+  const cx0 = inset + bw + pad, cy0 = inset + bw + pad;
+  const cw = CW - 2*cx0, ch = CH - 2*cy0;
+  const midX = cx0 + cw/2;
+
+  const textBlock = (key, text) => {
+    const st = S[key], px = st.size*PT_MM*ppm, font = fontStr(st, px), lh = px*1.25;
+    ctx.font = font; const lines = wrap(ctx, text, cw);
+    return {h: lines.length*lh, draw(y){
+      ctx.font = font; ctx.fillStyle = st.color; ctx.textBaseline = "middle"; ctx.textAlign = st.align;
+      const x = st.align==="left" ? cx0 : st.align==="right" ? cx0+cw : midX;
+      lines.forEach((ln,i) => {
+        const yy = y + lh*i + lh/2; ctx.fillText(ln, x, yy);
+        if (st.underline && ln){ const w = ctx.measureText(ln).width; const x0 = st.align==="left"?x:st.align==="right"?x-w:x-w/2; ctx.fillRect(x0, yy+px*0.42, w, Math.max(1, px*0.06)); }
+      });
+    }};
+  };
+
+  const blocks = [];
+  if (S.custom.show && S.content.custom.trim()) blocks.push(textBlock("custom", S.content.custom));
+  if (S.content.ssid) blocks.push(textBlock("ssidText", S.content.ssid));
+  blocks.push({h:qrPx, draw(y){ ctx.drawImage(qrBmp, midX-qrPx/2, y, qrPx, qrPx); }});
+
+  const I = S.icon, P = S.sep;
+  if (I.show || P.show){
+    const s = mm(I.size);
+    const iconH = !I.show ? 0 : I.style==="circle" ? s : arcsHeight(s);
+    const iconW = !I.show ? 0 : s;
+    const h = Math.max(iconH, P.show ? mm(P.thickness) : 0);
+    blocks.push({h, draw(y){
+      const cy = y + h/2;
+      if (P.show){
+        const L = cw*P.length/100, lw = mm(P.thickness), g = I.show ? iconW/2 + mm(P.gap) : 0;
+        ctx.strokeStyle = P.color; ctx.lineWidth = lw; applyDash(ctx, P.style, lw);
+        ctx.beginPath();
+        if (I.show){ if (L/2 > g){ ctx.moveTo(midX-L/2, cy); ctx.lineTo(midX-g, cy); ctx.moveTo(midX+g, cy); ctx.lineTo(midX+L/2, cy); } }
+        else { ctx.moveTo(midX-L/2, cy); ctx.lineTo(midX+L/2, cy); }
+        ctx.stroke(); ctx.setLineDash([]);
+      }
+      if (I.show){
+        if (I.style === "circle"){
+          ctx.fillStyle = I.color; ctx.beginPath(); ctx.arc(midX, cy, s/2, 0, Math.PI*2); ctx.fill();
+          const inner = s*0.56; drawArcs(ctx, midX, cy - arcsHeight(inner)/2 - s*0.02, inner, S.layout.bg);
+        } else drawArcs(ctx, midX, cy - iconH/2, s, I.color);
+      }
+    }});
+  }
+  if (S.content.showPw){
+    if (S.content.pwLabel){ const b = textBlock("pwLabel", S.content.pwLabel); b.gapAfter = mm(S.layout.labelGap); blocks.push(b); }
+    if (S.content.password && S.content.security !== "nopass") blocks.push(textBlock("pwText", S.content.password));
+  }
+
+  const gap = mm(S.layout.gap);
+  const gapsOf = blocks.slice(0,-1).map(b => b.gapAfter ?? gap);
+  const sumH = blocks.reduce((a,b)=>a+b.h, 0);
+  let total = sumH + gapsOf.reduce((a,b)=>a+b, 0);
+  let y = cy0, extra = 0;
+  if (S.layout.valign === "center") y = cy0 + (ch-total)/2;
+  else if (S.layout.valign === "distribute"){ extra = Math.max(0, (ch-total)/(blocks.length+1)); y = cy0 + extra; }
+  blocks.forEach((b,i) => { b.draw(y); y += b.h + (i < gapsOf.length ? gapsOf[i] + extra : 0); });
+  ctx.restore();
+  drawGuides(ctx, off, CW, CH, ppm);
+  return total > ch + 0.5;
+}
+
+/* Cut line and crop marks, drawn on the sheet outside the card */
+function drawGuides(ctx, off, CW, CH, ppm){
+  const c = S.cut; if (c.mode === "none") return;
+  const mm = (v) => v*ppm, lw = Math.max(1, mm(c.thickness));
+  ctx.strokeStyle = c.color; ctx.lineWidth = lw;
+  const L = off.x, T = off.y, R = off.x + CW, Bt = off.y + CH;
+  if (c.mode === "line" || c.mode === "both"){
+    applyDash(ctx, c.lineStyle, lw); ctx.strokeRect(L, T, CW, CH); ctx.setLineDash([]);
+  }
+  if (c.mode === "marks" || c.mode === "both"){
+    const g = mm(Math.max(c.gap, c.bleed)), n = mm(c.len);
+    ctx.lineCap = "butt"; ctx.setLineDash([]); ctx.beginPath();
+    for (const [x, sx] of [[L,-1],[R,1]]) for (const [y, sy] of [[T,-1],[Bt,1]]){
+      ctx.moveTo(x + sx*g, y); ctx.lineTo(x + sx*(g+n), y);
+      ctx.moveTo(x, y + sy*g); ctx.lineTo(x, y + sy*(g+n));
+    }
+    ctx.stroke();
+  }
+}
+
+/* ---------- Preview ---------- */
+const preview = document.getElementById("preview");
+const statusEl = document.getElementById("status");
+let pending = null, running = false;
+async function drawPreview(){
+  if (running){ pending = true; return; }
+  running = true;
+  try {
+    const sh = sheetSize();
+    preview.style.aspectRatio = `${sh.w} / ${sh.h}`;
+    document.getElementById("dim").textContent = S.cut.mode === "none"
+      ? `${S.page.w} × ${S.page.h} mm · preview`
+      : `Card ${S.page.w} × ${S.page.h} mm on ${sh.w} × ${sh.h} mm sheet · preview`;
+    const ppm = preview.clientWidth * (window.devicePixelRatio||1) / sh.w;
+    const overflow = await renderCard(preview, Math.max(ppm, 2));
+    document.getElementById("fitWarn").hidden = !overflow;
+    statusEl.textContent = "";
+  } catch(e){ statusEl.textContent = "Preview error: " + e.message; console.error(e); }
+  running = false;
+  if (pending){ pending = null; drawPreview(); }
+}
+let t; function update(){ persist(); clearTimeout(t); t = setTimeout(drawPreview, 60); }
+window.addEventListener("resize", update);
+
+/* ---------- Export ---------- */
+const fileBase = () => "wifi-" + (S.content.ssid || "card").replace(/[^\p{L}\p{N}_-]+/gu, "-").replace(/^-|-$/g,"");
+function triggerDownload(href, name){ const a = document.createElement("a"); a.href = href; a.download = name; document.body.appendChild(a); a.click(); a.remove(); }
+async function exportCanvas(){ const c = document.createElement("canvas"); await renderCard(c, Number(S.export.dpi)/25.4); return c; }
+
+document.getElementById("dlPdf").addEventListener("click", async () => {
+  statusEl.textContent = "Building PDF…";
+  try {
+    const c = await exportCanvas();
+    const { jsPDF } = window.jspdf;
+    const sh = sheetSize();
+    const doc = new jsPDF({unit:"mm", format:[sh.w, sh.h], orientation:"portrait", compress:true});
+    doc.setProperties({title: "WiFi – " + S.content.ssid});
+    doc.addImage(c.toDataURL("image/png"), "PNG", 0, 0, sh.w, sh.h, undefined, "FAST");
+    doc.save(fileBase() + ".pdf");
+    statusEl.textContent = "PDF downloaded.";
+  } catch(e){ statusEl.textContent = "Could not build the PDF: " + e.message; console.error(e); }
+});
+document.getElementById("dlPng").addEventListener("click", async () => {
+  const c = await exportCanvas();
+  c.toBlob(b => { const u = URL.createObjectURL(b); triggerDownload(u, fileBase()+".png"); setTimeout(()=>URL.revokeObjectURL(u), 2000); }, "image/png");
+});
+document.getElementById("saveJson").addEventListener("click", () => {
+  const u = URL.createObjectURL(new Blob([JSON.stringify(S, null, 2)], {type:"application/json"}));
+  triggerDownload(u, fileBase()+"-design.json"); setTimeout(()=>URL.revokeObjectURL(u), 2000);
+});
+document.getElementById("loadJsonBtn").addEventListener("click", () => document.getElementById("loadJson").click());
+document.getElementById("loadJson").addEventListener("change", e => {
+  const f = e.target.files[0]; if (!f) return;
+  f.text().then(tx => { try { S = merge(clone(DEFAULTS), JSON.parse(tx)); syncInputs(); update(); statusEl.textContent = "Design loaded."; } catch(err){ statusEl.textContent = "That file is not a saved design."; } });
+  e.target.value = "";
+});
+document.getElementById("reset").addEventListener("click", () => { S = clone(DEFAULTS); syncInputs(); update(); });
+
+syncInputs();
+document.fonts.ready.then(drawPreview);
+</script>
+</body>
+</html>

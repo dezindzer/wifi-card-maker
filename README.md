@@ -6,7 +6,7 @@ Everything runs in the browser. Nothing is sent to a server, and the network nam
 
 ## Getting started
 
-1. Open `wifi-card-maker.html` in Chrome, Edge or Firefox.
+1. Open `index.html` in Chrome, Edge or Firefox.
 2. Enter the WiFi name, password and custom text.
 3. Adjust the styling. The preview on the right updates as you type.
 4. Click **Download PDF** (or **Download PNG**).
